@@ -52,7 +52,9 @@ public class MainActivity extends AppCompatActivity {
             public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
 
                 // Start new activity. Opens a WebView
-                Toast.makeText(MainActivity.this, "Pressed: " + position, Toast.LENGTH_SHORT).show();
+                Intent intent = new Intent(getApplicationContext(), WebViewActivity.class);
+                intent.putExtra("url", mArticleUrls.get(position));
+                startActivity(intent);
             }
         });
 
