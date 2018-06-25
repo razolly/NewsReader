@@ -1,6 +1,8 @@
 package com.example.razli.newsreader;
 
 import android.content.Intent;
+import android.database.Cursor;
+import android.database.sqlite.SQLiteDatabase;
 import android.os.AsyncTask;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
@@ -27,22 +29,20 @@ public class MainActivity extends AppCompatActivity {
     private static final String TAG = "MainActivity";
     ListView mArticleListView;
     ArrayList<String> mArticleNames;
+    ArrayList<String> mArticleUrls;
     ArrayAdapter<String> mArrayAdapter;
-    JSONArray jsonArray;
-    ArrayList<Integer> mArticleIds;
+
+    SQLiteDatabase mDatabase;
+    int mNoOfArticles = 20;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        mArticleIds = new ArrayList<>();
         mArticleListView = findViewById(R.id.listView);
+        mArticleUrls = new ArrayList<>();
         mArticleNames = new ArrayList<>();
-        mArticleNames.add("Article 1");
-        mArticleNames.add("Article 2");
-        mArticleNames.add("Article 3");
-        mArticleNames.add("Article 4");
 
         mArrayAdapter = new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, mArticleNames);
         mArticleListView.setAdapter(mArrayAdapter);
@@ -52,14 +52,15 @@ public class MainActivity extends AppCompatActivity {
             public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
 
                 // Start new activity. Opens a WebView
-                try {
-                    String result = new DownloadJsonTask().execute("https://hacker-news.firebaseio.com/v0/topstories.json?print=pretty").get();
-
-                } catch (Exception e) {
-                    e.printStackTrace();
-                }
             }
         });
+
+        try {
+            String result = new DownloadJsonTask().execute("https://hacker-news.firebaseio.com/v0/topstories.json?print=pretty").get();
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
 
     private class DownloadJsonTask extends AsyncTask<String, Void, String> {
@@ -76,10 +77,16 @@ public class MainActivity extends AppCompatActivity {
             String result = "";
 
             try {
-                URL url = new URL(urls[0]);
-                HttpURLConnection urlConnection = (HttpURLConnection) url.openConnection();
-                InputStreamReader reader = new InputStreamReader(urlConnection.getInputStream());
-                int data = reader.read();
+
+                URL url;
+                HttpURLConnection urlConnection;
+                InputStreamReader reader;
+                int data;
+
+                url = new URL(urls[0]);
+                urlConnection = (HttpURLConnection) url.openConnection();
+                reader = new InputStreamReader(urlConnection.getInputStream());
+                data = reader.read();
 
                 while(data != -1) {
                     char currentChar = (char) data;
@@ -90,10 +97,39 @@ public class MainActivity extends AppCompatActivity {
                 JSONArray jsonArray = new JSONArray(result);
 
                 // Gets 20 Article Ids and adds to ArrayList
-                for(int i = 0; i < 20; i++) {
-                    mArticleIds.add(jsonArray.getInt(i));
-                    Log.i(TAG, "onPostExecute: mArticleId added: " + jsonArray.getInt(i));
+                for(int i = 0; i < mNoOfArticles; i++) {
+                    url = new URL("https://hacker-news.firebaseio.com/v0/item/" + Integer.toString(jsonArray.getInt(i)) + ".json?print=pretty");
+
+                    String articleInfo = "";
+
+                    // Same code as doInBackground
+                    // Gets all the concatenated JSON data
+                    urlConnection = (HttpURLConnection) url.openConnection();
+                    reader = new InputStreamReader(urlConnection.getInputStream());
+                    data = reader.read();
+
+                    while(data != -1) {
+                        char currentChar = (char) data;
+                        articleInfo += currentChar;
+                        data = reader.read();
+                    }
+
+                    // Create jsonObject to hold the data and to extract values from
+                    JSONObject jsonObject = new JSONObject(articleInfo);
+
+                    // Add to "Title" and "Url" to ArrayLists
+                    // Note: one of the JSON objects is missing a "url" field, hence the IF ELSE statement
+                    mArticleNames.add(jsonObject.getString("title"));
+
+                    if(jsonObject.has("url")) {
+                        mArticleUrls.add(jsonObject.getString("url"));
+                    } else {
+                        mArticleUrls.add("");
+                    }
                 }
+
+                // Store info in SQLite database
+                createDatabaseAndStoreInfo();
 
                 return result;
 
@@ -102,5 +138,37 @@ public class MainActivity extends AppCompatActivity {
                 return null;
             }
         }
+    }
+
+    private void createDatabaseAndStoreInfo() {
+
+        mDatabase = this.openOrCreateDatabase("HackerNews", MODE_PRIVATE, null);
+
+        // Create table
+        mDatabase.execSQL("CREATE TABLE IF NOT EXISTS topStories (id INTEGER PRIMARY KEY, title VARCHAR, url VARCHAR)");
+
+//        // Insert 20 articles into database
+//        for(int i = 0; i < mNoOfArticles; i++) {
+//            mDatabase.execSQL("INSERT INTO topStories(title, url) VALUES ('" + mArticleNames.get(i) + "','" + mArticleUrls.get(i) + "')");;
+//        }
+
+        // Test to see if data is correct
+        Cursor resultSet = mDatabase.rawQuery("SELECT * FROM topStories", null);
+
+        int idIndex = resultSet.getColumnIndex("id");
+        int titleIndex = resultSet.getColumnIndex("title");
+        int urlIndex = resultSet.getColumnIndex("url");
+
+        resultSet.moveToFirst();
+
+        while (resultSet != null) {
+            Log.i(TAG, "createDatabaseAndStoreInfo: ID: " + resultSet.getString(idIndex));
+            Log.i(TAG, "createDatabaseAndStoreInfo: Title: " + resultSet.getString(titleIndex));
+            Log.i(TAG, "createDatabaseAndStoreInfo: Url: " + resultSet.getString(urlIndex));
+
+            resultSet.moveToNext();
+        }
+
+        resultSet.close();
     }
 }
