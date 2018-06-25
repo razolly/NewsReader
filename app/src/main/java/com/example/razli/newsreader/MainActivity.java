@@ -52,6 +52,7 @@ public class MainActivity extends AppCompatActivity {
             public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
 
                 // Start new activity. Opens a WebView
+                Toast.makeText(MainActivity.this, "Pressed: " + position, Toast.LENGTH_SHORT).show();
             }
         });
 
@@ -117,7 +118,7 @@ public class MainActivity extends AppCompatActivity {
                     // Create jsonObject to hold the data and to extract values from
                     JSONObject jsonObject = new JSONObject(articleInfo);
 
-                    // Add to "Title" and "Url" to ArrayLists
+                    // Add "Title" and "Url" to ArrayLists
                     // Note: one of the JSON objects is missing a "url" field, hence the IF ELSE statement
                     mArticleNames.add(jsonObject.getString("title"));
 
@@ -127,6 +128,9 @@ public class MainActivity extends AppCompatActivity {
                         mArticleUrls.add("");
                     }
                 }
+
+                // Update ListView
+                mArrayAdapter.notifyDataSetChanged();
 
                 // Store info in SQLite database
                 createDatabaseAndStoreInfo();
@@ -147,6 +151,7 @@ public class MainActivity extends AppCompatActivity {
         // Create table
         mDatabase.execSQL("CREATE TABLE IF NOT EXISTS topStories (id INTEGER PRIMARY KEY, title VARCHAR, url VARCHAR)");
 
+        // Note: Entries successfully added
 //        // Insert 20 articles into database
 //        for(int i = 0; i < mNoOfArticles; i++) {
 //            mDatabase.execSQL("INSERT INTO topStories(title, url) VALUES ('" + mArticleNames.get(i) + "','" + mArticleUrls.get(i) + "')");;
