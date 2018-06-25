@@ -47,32 +47,27 @@ public class MainActivity extends AppCompatActivity {
         mArrayAdapter = new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, mArticleNames);
         mArticleListView.setAdapter(mArrayAdapter);
 
+        // Get the JSON from URL and parse
+        try {
+            new DownloadJsonTask().execute("https://hacker-news.firebaseio.com/v0/topstories.json?print=pretty").get();
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        // Start new activity. Opens a WebView to view article
         mArticleListView.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             @Override
             public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
 
-                // Start new activity. Opens a WebView
                 Intent intent = new Intent(getApplicationContext(), WebViewActivity.class);
                 intent.putExtra("url", mArticleUrls.get(position));
                 startActivity(intent);
             }
         });
-
-        try {
-            String result = new DownloadJsonTask().execute("https://hacker-news.firebaseio.com/v0/topstories.json?print=pretty").get();
-
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
     }
 
     private class DownloadJsonTask extends AsyncTask<String, Void, String> {
-
-        // Extract the JSON objects
-        @Override
-        protected void onPostExecute(String s) {
-            super.onPostExecute(s);
-        }
 
         @Override
         protected String doInBackground(String... urls) {
